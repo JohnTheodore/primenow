@@ -1,12 +1,12 @@
 import io
 import ipdb
-import pygame
 import re
 import requests
 import sys
 import time
 from bs4 import BeautifulSoup
 from pycookiecheat import chrome_cookies
+from pygame import mixer
 
 
 primenow_url = 'https://primenow.amazon.com'
@@ -28,13 +28,19 @@ def query_primenow(url, cookies):
   return response
 
 
+def exit_on_empty_shopping_cart(checkout_button_html):
+  if len(checkout_button_html) < 1:
+    sys.exit('Shopping cart is currently empty.')
+
+
 def get_checkout_html():
   primenow_cookies = get_primenow_cookies()
   shopping_cart_response = query_primenow('https://primenow.amazon.com/cart', primenow_cookies)
   primenow_cookies.update(shopping_cart_response.cookies.get_dict())
   shopping_cart_html = BeautifulSoup(shopping_cart_response.content, features='html.parser')
-  checkout_button_html = shopping_cart_html.findAll('span', {'class': 'cart-checkout-button'})[0]
-  checkout_link = checkout_button_html.find('a')['href']
+  checkout_button_html = shopping_cart_html.findAll('span', {'class': 'cart-checkout-button'})
+  exit_on_empty_shopping_cart(checkout_button_html)
+  checkout_link = checkout_button_html[0].find('a')['href']
   checkout_url = '%s%s' % (primenow_url, checkout_link)
   checkout_response = query_primenow(checkout_url, primenow_cookies)
   return BeautifulSoup(checkout_response.content, features='html.parser')
@@ -49,9 +55,9 @@ def delivery_time_availible(checkout_html):
 
 def play_victory_music():
   daft_punk = requests.get('https://download.mp3-here.icu/i/Daft-Punk-End-Of-Line.mp3')
-  pygame.mixer.init()
-  pygame.mixer.music.load(io.BytesIO(daft_punk.content))
-  pygame.mixer.music.play()
+  mixer.init()
+  mixer.music.load(io.BytesIO(daft_punk.content))
+  mixer.music.play()
 
 
 while not delivery_time_availible(get_checkout_html()):
