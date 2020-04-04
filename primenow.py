@@ -8,10 +8,10 @@ import time
 from bs4 import BeautifulSoup
 from pycookiecheat import chrome_cookies
 
-
 primenow_url = 'https://primenow.amazon.com'
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) \
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) \
     Chrome/80.0.3987.149 Safari/537.36',
 }
 
@@ -30,31 +30,36 @@ def query_primenow(url, cookies):
 
 def get_checkout_html():
   primenow_cookies = get_primenow_cookies()
-  shopping_cart_response = query_primenow('https://primenow.amazon.com/cart', primenow_cookies)
+  shopping_cart_response = query_primenow('https://primenow.amazon.com/cart',
+                                          primenow_cookies)
   primenow_cookies.update(shopping_cart_response.cookies.get_dict())
-  shopping_cart_html = BeautifulSoup(shopping_cart_response.content, features='html.parser')
-  checkout_button_html = shopping_cart_html.findAll('span', {'class': 'cart-checkout-button'})[0]
+  shopping_cart_html = BeautifulSoup(shopping_cart_response.content,
+                                     features='html.parser')
+  checkout_button_html = shopping_cart_html.findAll(
+    'span', {'class': 'cart-checkout-button'})[0]
   checkout_link = checkout_button_html.find('a')['href']
   checkout_url = '%s%s' % (primenow_url, checkout_link)
   checkout_response = query_primenow(checkout_url, primenow_cookies)
   return BeautifulSoup(checkout_response.content, features='html.parser')
 
 
-def delivery_time_availibility(checkout_html):
-  no_delivery_time = checkout_html.findAll(text=re.compile('No delivery windows available.'))
+def delivery_time_availible(checkout_html):
+  no_delivery_time = checkout_html.findAll(
+    text=re.compile('No delivery windows available.'))
   if len(no_delivery_time) > 0:
     return False
   return True
 
 
 def play_victory_music():
-  daft_punk = requests.get('https://download.mp3-here.icu/i/Daft-Punk-End-Of-Line.mp3')
+  daft_punk = requests.get(
+    'https://download.mp3-here.icu/i/Daft-Punk-End-Of-Line.mp3')
   pygame.mixer.init()
   pygame.mixer.music.load(io.BytesIO(daft_punk.content))
   pygame.mixer.music.play()
 
 
-while not delivery_time_availibility(get_checkout_html()):
+while not delivery_time_availible(get_checkout_html()):
   print('Still no delivery times available. :(')
   time.sleep(60)
 
