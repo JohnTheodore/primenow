@@ -54,7 +54,7 @@ def get_checkout_html():
 def get_earliest_delivery_window(checkout_html):
   two_hour_soup_block = checkout_html.findAll('div', {'id': 'two-hour-window'})
   if len(two_hour_soup_block) < 1:
-    ipdb.set_trace()
+    sys.exit('empty delivery box div again?')
   two_hour_soup_block = two_hour_soup_block[0]
   delivery_times = two_hour_soup_block.findAll('div', {'class': 'a-section a-spacing-none'})
   available_delivery_windows = []
@@ -69,14 +69,23 @@ def get_earliest_delivery_window(checkout_html):
 
 def set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies):
   next_url = checkout_html.findAll('form', {'action' : re.compile('/checkout/deliveryslot/')})[0]['action'].split('&')[0]
+  delivery_slot_form = checkout_html.findAll('form', {'name' : 'deliverySlotForm'})[0]
+  token_value = delivery_slot_form.findAll('input', {'name': 'tokenValue'})[0]['value']
   params = (
       ('nexturl', next_url),
       ('ref_', 'pn_co_ds_c'),
       ('fromPanel', 'delivery-slot'),
   )
   data = delivery_window['delivery_json']
+  data.update({
+    'tokenName': 'delivery-slot',
+    'shipOptionType': 'scheduled_two_hour_delivery',
+    'sameDay': '',
+    'deliveryType': 'UNATTENDED'}
+  )
   checkout_prefetch_url = 'https://primenow.amazon.com/checkout/prefetch'
-  response = query_primenow(checkout_prefetch_url, primenow_cookies, method='post', params=params, data=json.loads(data))
+  ipdb.set_trace()
+  response = query_primenow(checkout_prefetch_url, primenow_cookies, method='post', params=params, data=data)
   return response
 
 
@@ -136,6 +145,7 @@ def is_delivery_time_available(checkout_html):
   wants_address_selected = checkout_html.findAll(text=re.compile('Select Delivery Address'))
   if len(wants_address_selected) > 0:
     print('dumb address bug')
+    return False
   return True
 
 
