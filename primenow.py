@@ -1,5 +1,6 @@
 import io
 import ipdb
+import json
 import re
 import requests
 import sys
@@ -20,8 +21,11 @@ def get_primenow_cookies():
   return chrome_cookies(primenow_url)
 
 
-def query_primenow(url, cookies):
-  response = requests.get(url, headers=headers, cookies=cookies)
+def query_primenow(url, cookies, method='get', data=None, params=None):
+  if method == 'get':
+    response = requests.get(url, headers=headers, cookies=cookies)
+  elif method == 'post':
+    response = requests.post(url, headers=headers, cookies=cookies, params=params, data=data)
   response.raise_for_status()
   if 'Sign in' in str(response.content):
     sys.exit('Invalid authentication.')
@@ -43,10 +47,81 @@ def get_checkout_html():
   checkout_link = checkout_button_html[0].find('a')['href']
   checkout_url = '%s%s' % (primenow_url, checkout_link)
   checkout_response = query_primenow(checkout_url, primenow_cookies)
-  return BeautifulSoup(checkout_response.content, features='html.parser')
+  primenow_cookies.update(checkout_response.cookies.get_dict())
+  return (BeautifulSoup(checkout_response.content, features='html.parser'), primenow_cookies)
 
 
-def delivery_time_availible(checkout_html):
+def get_earliest_delivery_window(checkout_html):
+  two_hour_soup_block = checkout_html.findAll('div', {'id': 'two-hour-window'})[0]
+  delivery_times = two_hour_soup_block.findAll('div', {'class': 'a-section a-spacing-none'})
+  available_delivery_windows = []
+  for delivery_time in delivery_times:
+    time_slot = delivery_time.findAll(text=re.compile(' PM'))[0].strip()
+    delivery_key_html = delivery_time.find(attrs={'data-action': 'selectdeliverywindow'})['data-selectdeliverywindow']
+    delivery_json = json.loads(delivery_key_html)
+    available_delivery_windows.append({'time_slot': time_slot, 'delivery_json': delivery_json})
+  print(available_delivery_windows)
+  return available_delivery_windows[0]
+
+
+def set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies):
+  next_url = checkout_html.findAll('form', {'action' : re.compile('/checkout/deliveryslot/')})[0]['action'].split('&')[0]
+  params = (
+      ('nexturl', next_url),
+      ('ref_', 'pn_co_ds_c'),
+      ('fromPanel', 'delivery-slot'),
+  )
+  data = delivery_window['delivery_json']
+  checkout_prefetch_url = 'https://primenow.amazon.com/checkout/prefetch'
+  response = query_primenow(checkout_prefetch_url, primenow_cookies, method='post', params=params, data=json.loads(data))
+  return response
+
+
+def checkout(checkout_html, primenow_cookies):
+  delivery_window = get_earliest_delivery_window(checkout_html)
+  response = set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
+  ipdb.set_trace()
+  data = {
+    'events': [
+      {
+        'data': {
+          'renderedToMeaningful': 151,
+          'renderedToViewed': 151,
+          'renderedToImpressed': 1152,
+          'schemaId': 'csa.PageImpressed.2',
+          'timestamp': '2020-04-04T21:10:05.564Z',
+          'messageId': '4fsntm-rgsmgi-vdaomx-vnm3p9',
+          'application': 'Retail',
+          'obfuscatedMarketplaceId': 'A1IXFGJ6ITL7J4',
+          'producerId': 'csa',
+          'entities': {
+            'page': {
+              'id': '5q6w1b-xtakwu-ip6i05-bnvcv4',
+              'requestId': '32291AP8WS13QAPZYMAA',
+              'meaningful': 'interactive',
+              'url': 'https://primenow.amazon.com/checkout/enter-checkout?merchantId=A23L00C7H3DINE&ref=pn_sc_ptc_bwr',
+              'server': 'primenow.amazon.com',
+              'path': '/checkout/enter-checkout',
+              'referrer': 'https://primenow.amazon.com/cart?ref_=pn_gw_nav_cart',
+              'title': 'Amazon Prime Now: Checkout',
+              'pageType': 'CheckoutDeliverySlotDesktopWeb',
+              'subPageType': 'cart-to-deliverySlot',
+              'pageTypeId': ''
+            },
+            'session': {
+              'id': '144-7656386-8014611'
+            }
+          }
+        }
+      }
+    ]
+  }
+  ipdb.set_trace()
+  query_primenow(checkout_url, primenow_cookies, data=json.loads(data))
+  return True
+
+
+def get_delivery_time_availibility(checkout_html):
   no_delivery_time = checkout_html.findAll(text=re.compile('No delivery windows available.'))
   if len(no_delivery_time) > 0:
     return False
@@ -60,9 +135,11 @@ def play_victory_music():
   mixer.music.play()
 
 
-while not delivery_time_availible(get_checkout_html()):
+while True:
+  checkout_html = get_checkout_html()
+  delivery_time_available = get_delivery_time_availibility(checkout_html[0])
+  if delivery_time_available:
+    play_victory_music()
+    checkout(checkout_html[0], checkout_html[1])
   print('Still no delivery times available. :(')
-  time.sleep(60)
-
-play_victory_music()
-ipdb.set_trace()
+  time.sleep(30)
