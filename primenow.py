@@ -54,7 +54,8 @@ def get_checkout_html():
 def get_earliest_delivery_window(checkout_html):
   two_hour_soup_block = checkout_html.findAll('div', {'id': 'two-hour-window'})
   if len(two_hour_soup_block) < 1:
-    sys.exit('empty delivery box div again?')
+    print('empty delivery box div again?')
+    buy_primenow_groceries()
   two_hour_soup_block = two_hour_soup_block[0]
   delivery_times = two_hour_soup_block.findAll('div', {'class': 'a-section a-spacing-none'})
   available_delivery_windows = []
@@ -67,7 +68,7 @@ def get_earliest_delivery_window(checkout_html):
   return available_delivery_windows[0]
 
 
-def set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies):
+def set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookies):
   next_url = checkout_html.findAll('form', {'action' : re.compile('/checkout/deliveryslot/')})[0]['action'].split('&')[0]
   delivery_slot_form = checkout_html.findAll('form', {'name' : 'deliverySlotForm'})[0]
   token_value = delivery_slot_form.findAll('input', {'name': 'tokenValue'})[0]['value']
@@ -83,21 +84,21 @@ def set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
     'sameDay': '',
     'deliveryType': 'UNATTENDED'}
   )
+  data['tokenValue'] = token_value
   checkout_prefetch_url = 'https://primenow.amazon.com/checkout/prefetch'
-  ipdb.set_trace()
   response = query_primenow(checkout_prefetch_url, primenow_cookies, method='post', params=params, data=data)
   return response
 
 
-def continue_to_latest_delivery():
+def continue_to_latest_delivery(set_delivery_window_response):
+  ipdb.set_trace()
   return True
 
 
 def checkout(checkout_html, primenow_cookies):
   delivery_window = get_earliest_delivery_window(checkout_html)
-  set_delivery_window_response = set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
-  continue_to_delivery_response = continue_to_latest_delivery()
-  ipdb.set_trace()
+  set_delivery_window_response = set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookies)
+  continue_to_delivery_response = continue_to_latest_delivery(set_delivery_window_response)
   data = {
     'events': [
       {
@@ -133,8 +134,6 @@ def checkout(checkout_html, primenow_cookies):
       }
     ]
   }
-  ipdb.set_trace()
-  query_primenow(checkout_url, primenow_cookies, data=json.loads(data))
   return True
 
 
@@ -156,11 +155,14 @@ def play_victory_music():
   mixer.music.play()
 
 
-while True:
-  checkout_html = get_checkout_html()
-  delivery_time_available = is_delivery_time_available(checkout_html[0])
-  if delivery_time_available:
-    play_victory_music()
-    checkout(checkout_html[0], checkout_html[1])
-  print('Still no delivery times available. :(')
-  time.sleep(30)
+def buy_primenow_groceries():
+  while True:
+    checkout_html = get_checkout_html()
+    delivery_time_available = is_delivery_time_available(checkout_html[0])
+    if delivery_time_available:
+      play_victory_music()
+      time.sleep(3)
+      checkout(checkout_html[0], checkout_html[1])
+      sys.exit('Finished checkout out.')
+    print('Still no delivery times available. :(')
+    time.sleep(30)
