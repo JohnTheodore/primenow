@@ -52,7 +52,10 @@ def get_checkout_html():
 
 
 def get_earliest_delivery_window(checkout_html):
-  two_hour_soup_block = checkout_html.findAll('div', {'id': 'two-hour-window'})[0]
+  two_hour_soup_block = checkout_html.findAll('div', {'id': 'two-hour-window'})
+  if len(two_hour_soup_block) < 1:
+    ipdb.set_trace()
+  two_hour_soup_block = two_hour_soup_block[0]
   delivery_times = two_hour_soup_block.findAll('div', {'class': 'a-section a-spacing-none'})
   available_delivery_windows = []
   for delivery_time in delivery_times:
@@ -77,9 +80,14 @@ def set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
   return response
 
 
+def continue_to_latest_delivery():
+  return True
+
+
 def checkout(checkout_html, primenow_cookies):
   delivery_window = get_earliest_delivery_window(checkout_html)
-  response = set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
+  set_delivery_window_response = set_latest_delivery_window(checkout_html, delivery_window, primenow_cookies)
+  continue_to_delivery_response = continue_to_latest_delivery()
   ipdb.set_trace()
   data = {
     'events': [
@@ -121,10 +129,13 @@ def checkout(checkout_html, primenow_cookies):
   return True
 
 
-def get_delivery_time_availibility(checkout_html):
+def is_delivery_time_available(checkout_html):
   no_delivery_time = checkout_html.findAll(text=re.compile('No delivery windows available.'))
   if len(no_delivery_time) > 0:
     return False
+  wants_address_selected = checkout_html.findAll(text=re.compile('Select Delivery Address'))
+  if len(wants_address_selected) > 0:
+    print('dumb address bug')
   return True
 
 
@@ -137,7 +148,7 @@ def play_victory_music():
 
 while True:
   checkout_html = get_checkout_html()
-  delivery_time_available = get_delivery_time_availibility(checkout_html[0])
+  delivery_time_available = is_delivery_time_available(checkout_html[0])
   if delivery_time_available:
     play_victory_music()
     checkout(checkout_html[0], checkout_html[1])
