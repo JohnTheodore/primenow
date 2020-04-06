@@ -1,3 +1,4 @@
+import datetime
 import io
 import ipdb
 import json
@@ -91,49 +92,29 @@ def set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookie
 
 
 def continue_to_latest_delivery(set_delivery_window_response):
-  ipdb.set_trace()
-  return True
+  params = (
+    ('ref_', 'pn_co_ot_po'),
+  )
+  data = {}
+  continue_html_string = json.loads(set_delivery_window_response.content)['htmlResponse']
+  continue_html_soup = BeautifulSoup(continue_html_string, features='html.parser')
+  continue_data_html = continue_html_soup.findAll('form', {'action': '/checkout/spc/continue?ref_=pn_co_ot_po'})[0]
+  data_inputs = continue_data_html.findAll('input')
+  for data_input in data_inputs:
+    data[data_input['name']] = data_input['value']
+
+  continue_url = 'https://primenow.amazon.com/checkout/spc/continue'
+  cookies = set_delivery_window_response.cookies.get_dict()
+  response = query_primenow(continue_url, cookies, method='post', params=params, data=data)
+  return response
+
 
 
 def checkout(checkout_html, primenow_cookies):
   delivery_window = get_earliest_delivery_window(checkout_html)
   set_delivery_window_response = set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookies)
   continue_to_delivery_response = continue_to_latest_delivery(set_delivery_window_response)
-  data = {
-    'events': [
-      {
-        'data': {
-          'renderedToMeaningful': 151,
-          'renderedToViewed': 151,
-          'renderedToImpressed': 1152,
-          'schemaId': 'csa.PageImpressed.2',
-          'timestamp': '2020-04-04T21:10:05.564Z',
-          'messageId': '4fsntm-rgsmgi-vdaomx-vnm3p9',
-          'application': 'Retail',
-          'obfuscatedMarketplaceId': 'A1IXFGJ6ITL7J4',
-          'producerId': 'csa',
-          'entities': {
-            'page': {
-              'id': '5q6w1b-xtakwu-ip6i05-bnvcv4',
-              'requestId': '32291AP8WS13QAPZYMAA',
-              'meaningful': 'interactive',
-              'url': 'https://primenow.amazon.com/checkout/enter-checkout?merchantId=A23L00C7H3DINE&ref=pn_sc_ptc_bwr',
-              'server': 'primenow.amazon.com',
-              'path': '/checkout/enter-checkout',
-              'referrer': 'https://primenow.amazon.com/cart?ref_=pn_gw_nav_cart',
-              'title': 'Amazon Prime Now: Checkout',
-              'pageType': 'CheckoutDeliverySlotDesktopWeb',
-              'subPageType': 'cart-to-deliverySlot',
-              'pageTypeId': ''
-            },
-            'session': {
-              'id': '144-7656386-8014611'
-            }
-          }
-        }
-      }
-    ]
-  }
+
   return True
 
 
@@ -164,5 +145,8 @@ def buy_primenow_groceries():
       time.sleep(3)
       checkout(checkout_html[0], checkout_html[1])
       sys.exit('Finished checkout out.')
-    print('Still no delivery times available. :(')
+    print('%s Still no delivery times available. :(' % datetime.datetime.now())
     time.sleep(30)
+
+
+buy_primenow_groceries()
