@@ -61,7 +61,7 @@ def get_earliest_delivery_window(checkout_html):
   delivery_times = two_hour_soup_block.findAll('div', {'class': 'a-section a-spacing-none'})
   available_delivery_windows = []
   for delivery_time in delivery_times:
-    time_slot = delivery_time.findAll(text=re.compile(' PM'))[0].strip()
+    time_slot = delivery_time.findAll(text=re.compile('M \('))[0].strip()
     delivery_key_html = delivery_time.find(attrs={'data-action': 'selectdeliverywindow'})['data-selectdeliverywindow']
     delivery_json = json.loads(delivery_key_html)
     available_delivery_windows.append({'time_slot': time_slot, 'delivery_json': delivery_json})
@@ -91,7 +91,7 @@ def set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookie
   return response
 
 
-def continue_to_latest_delivery(set_delivery_window_response):
+def continue_to_latest_delivery(set_delivery_window_response, primenow_cookies):
   params = (
     ('ref_', 'pn_co_ot_po'),
   )
@@ -101,23 +101,29 @@ def continue_to_latest_delivery(set_delivery_window_response):
   continue_data_html = continue_html_soup.findAll('form', {'action': '/checkout/spc/continue?ref_=pn_co_ot_po'})[0]
   data_inputs = continue_data_html.findAll('input')
   for data_input in data_inputs:
-    if 'name' in data_input:
-      data[data_input['name']] = data_input['value']
+    name = data_input.get('name')
+    if name:
+      data[name] = data_input['value']
 
   continue_url = 'https://primenow.amazon.com/checkout/spc/continue'
-  cookies = set_delivery_window_response.cookies.get_dict()
-  response = query_primenow(continue_url, cookies, method='post', params=params, data=data)
+  # cookies = set_delivery_window_response.cookies.get_dict()
+  ipdb.set_trace()
+  response = query_primenow(continue_url, primenow_cookies, method='post', params=params, data=data)
+  # response = query_primenow(continue_url, cookies, method='post', params=params, data=data)
   return response
 
 
 def purchase_and_ship_cart(continue_to_delivery_response):
+  ipdb.set_trace()
   return True
 
 
 def checkout(checkout_html, primenow_cookies):
   delivery_window = get_earliest_delivery_window(checkout_html)
+  play_victory_music()
+  time.sleep(3)
   set_delivery_window_response = set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookies)
-  continue_to_delivery_response = continue_to_latest_delivery(set_delivery_window_response)
+  continue_to_delivery_response = continue_to_latest_delivery(set_delivery_window_response, primenow_cookies)
   purchase_and_ship_cart(continue_to_delivery_response)
 
 
@@ -144,8 +150,6 @@ def buy_primenow_groceries():
     checkout_html = get_checkout_html()
     delivery_time_available = is_delivery_time_available(checkout_html[0])
     if delivery_time_available:
-      play_victory_music()
-      time.sleep(3)
       checkout(checkout_html[0], checkout_html[1])
       sys.exit('Finished checkout out.')
     print('%s Still no delivery times available. :(' % datetime.datetime.now())
