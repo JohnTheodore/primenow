@@ -101,7 +101,8 @@ def continue_to_latest_delivery(set_delivery_window_response):
   continue_data_html = continue_html_soup.findAll('form', {'action': '/checkout/spc/continue?ref_=pn_co_ot_po'})[0]
   data_inputs = continue_data_html.findAll('input')
   for data_input in data_inputs:
-    data[data_input['name']] = data_input['value']
+    if 'name' in data_input:
+      data[data_input['name']] = data_input['value']
 
   continue_url = 'https://primenow.amazon.com/checkout/spc/continue'
   cookies = set_delivery_window_response.cookies.get_dict()
@@ -109,13 +110,15 @@ def continue_to_latest_delivery(set_delivery_window_response):
   return response
 
 
+def purchase_and_ship_cart(continue_to_delivery_response):
+  return True
+
 
 def checkout(checkout_html, primenow_cookies):
   delivery_window = get_earliest_delivery_window(checkout_html)
   set_delivery_window_response = set_earliest_delivery_window(checkout_html, delivery_window, primenow_cookies)
   continue_to_delivery_response = continue_to_latest_delivery(set_delivery_window_response)
-
-  return True
+  purchase_and_ship_cart(continue_to_delivery_response)
 
 
 def is_delivery_time_available(checkout_html):
