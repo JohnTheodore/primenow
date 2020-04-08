@@ -17,14 +17,15 @@ headers = {
 primenow_url = 'https://primenow.amazon.com'
 refresh_cadence = 30
 tip_amount = '5'
+chrome_cookie_file = '~/Library/Application Support/Google/Chrome/Profile 3/Cookies'
 
 
 # automatically loads the primenow.com cookies from the Chrome defaults sqlite file.
 # note, this is unlikely to work when you first run the program. Some people use brave,
 # some use chrome. There are different "profiles" in chrome. Easiest thing is to find your
 # Cookies files, and just set a symbolic link from ~/Library/Application\ Support/Google/Chrome/Default/Cookies
-def get_primenow_cookies(primenow_url):
-  return chrome_cookies(primenow_url)
+def get_primenow_cookies(primenow_url, chrome_cookie_file):
+  return chrome_cookies(primenow_url, chrome_cookie_file)
 
 
 def query_primenow(url, cookies, method='get', data=None, params=None):
@@ -206,12 +207,13 @@ def play_victory_music(mp3_url):
 # the main loop
 def buy_primenow_groceries(primenow_url, refresh_cadence):
   while True:
-    primenow_cookies = get_primenow_cookies(primenow_url)
+    primenow_cookies = get_primenow_cookies(primenow_url, chrome_cookie_file)
     checkout_html = get_checkout_html(primenow_url, primenow_cookies)
     delivery_time_available = is_delivery_time_available(checkout_html[0])
     if delivery_time_available:
       checkout(checkout_html[0], checkout_html[1])
-      play_victory_music('https://download.mp3-here.icu/i/Daft-Punk-End-Of-Line.mp3')
+      play_victory_music(
+        'https://download.mp3-here.icu/i/Daft-Punk-End-Of-Line.mp3')
       # sleep to let the full song play
       time.sleep(180)
       sys.exit('Finished checkout out.')
