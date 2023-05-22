@@ -1,4 +1,4 @@
-requests==2.23.0
+requests==2.31.0
 beautifulsoup4==4.8.2
 pycookiecheat==0.4.5
 pygame==1.9.6
